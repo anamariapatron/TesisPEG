@@ -1,0 +1,7 @@
+# Ignore CSV files
+*.csv
+*.png
+*.dll
+*.pt
+*.lib
+
