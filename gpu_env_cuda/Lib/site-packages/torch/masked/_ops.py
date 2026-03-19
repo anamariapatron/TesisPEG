@@ -1,7 +1,7 @@
-# mypy: allow-untyped-decorators
 # mypy: allow-untyped-defs
 import warnings
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, TYPE_CHECKING, TypeVar, Union
+from typing_extensions import ParamSpec
 
 import torch
 from torch import sym_float, Tensor
@@ -14,14 +14,17 @@ from torch.masked.maskedtensor.creation import as_masked_tensor
 if TYPE_CHECKING:
     from torch.types import _dtype as DType
 
-    DimOrDims = Optional[Union[int, Tuple[int], List[int]]]
+    DimOrDims = Optional[Union[int, tuple[int], list[int]]]
 else:
     # The JIT doesn't understand Union, nor torch.dtype here
     DType = int
-    DimOrDims = Optional[Tuple[int]]
+    DimOrDims = Optional[tuple[int]]
 
 
-__all__: List[str] = []
+__all__: list[str] = []
+
+_T = TypeVar("_T")
+_P = ParamSpec("_P")
 
 # All masked reduction/normalization operations have the same
 # signatures. Here we introduce docstring templates that are applied
@@ -29,7 +32,7 @@ __all__: List[str] = []
 # _apply_docstring_templates decorator.
 
 
-def _apply_docstring_templates(func):
+def _apply_docstring_templates(func: Callable[_P, _T]) -> Callable[_P, _T]:
     """Decorator that applies docstring templates to function docstring
     and returns the function instance.
     """
@@ -288,7 +291,7 @@ defined as ``prod(x[:i])``.""",
     example_dim = 1
     example_input = torch.tensor([[-3, -2, -1], [0, 1, 2]])
     example_mask = torch.tensor([[True, False, True], [False, False, False]])
-    example_args: Tuple[Any, ...]
+    example_args: tuple[Any, ...]
     if func.__name__ in {"norm", "normalize"}:
         example_args = (2.0, example_dim)
         example_input = example_input.to(dtype=torch.float32)
@@ -300,8 +303,8 @@ defined as ``prod(x[:i])``.""",
     else:
         example_args = (example_dim,)
 
-    operation_args: Tuple[str, ...]
-    operation_kwargs: Tuple[str, ...]
+    operation_args: tuple[str, ...]
+    operation_kwargs: tuple[str, ...]
     operation_args, operation_kwargs = args_and_kwargs[func.__name__]
     arg_declarations = [
         "\n    ".join(
@@ -458,9 +461,9 @@ def _reduction_identity(op_name: str, input: Tensor, *args):
     raise NotImplementedError(f"identity of {op_name} on {dtype} input")
 
 
-def _canonical_dim(dim: DimOrDims, ndim: int) -> Tuple[int, ...]:
+def _canonical_dim(dim: DimOrDims, ndim: int) -> tuple[int, ...]:
     """Return dim argument as a tuple of sorted dim values."""
-    dims: List[int] = []
+    dims: list[int] = []
     if dim == ():
         # Currently, `dim=()` in reductions operations means "reduce
         # over all dimensions" while in future, it will read "no
@@ -615,7 +618,7 @@ def _sparse_coo_where(mask: Tensor, input: Tensor, fill_value: Tensor) -> Tensor
 def _sparse_coo_scatter_reduction_helper(
     op,
     mask_input: Tensor,
-    dims: Tuple[int, ...],
+    dims: tuple[int, ...],
     keepdim: bool,
     dtype: Optional[DType] = None,
 ) -> Tensor:
@@ -735,7 +738,7 @@ def _sparse_coo_scatter_reduction_helper(
 def _sparse_csr_segment_reduction_helper(
     op,
     mask_input: Tensor,
-    dims: Tuple[int, ...],
+    dims: tuple[int, ...],
     keepdim: bool,
     dtype: Optional[DType] = None,
 ) -> Tensor:
@@ -1381,8 +1384,16 @@ elements, have ``nan`` values.
 {reduction_args}
 
 {reduction_example}"""
+    dtype_source = "Optional"
     if dtype is None:
         dtype = input.dtype
+        dtype_source = "Input"
+
+    if not (dtype.is_floating_point or dtype.is_complex):
+        raise ValueError(
+            f"mean(): Could not infer output dtype. {dtype_source} dtype must be either "
+            f"a floating point or complex dtype. Got: {dtype}"
+        )
     if input.layout == torch.strided:
         if mask is None:
             # TODO: compute count analytically
@@ -1781,7 +1792,6 @@ def normalize(
 ) -> Tensor:
     if dtype is None:
         dtype = input.dtype
-    dim_ = _canonical_dim(dim, input.ndim)[0]
     # TODO: eliminate mask_input as unnecessary when using masked divide.
     mask_input = _combine_input_and_mask(sum, input, mask)
     if mask_input.layout == torch.strided:

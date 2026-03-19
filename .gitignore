@@ -4,4 +4,9 @@
 *.dll
 *.pt
 *.lib
+*.xlsx
+*.pkl
+*.txt
+
+
 

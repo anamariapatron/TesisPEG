@@ -1,0 +1,43 @@
+Metadata-Version: 2.4
+Name: tqdm_joblib
+Version: 0.0.5
+Summary: Tracking progress of joblib.Parallel execution
+Project-URL: Homepage, https://stackoverflow.com/a/58936697/5133167
+Project-URL: Repository, https://github.com/louisabraham/tqdm_joblib
+Project-URL: Bug Tracker, https://github.com/louisabraham/tqdm_joblib/issues
+Author-email: Louis Abraham <louis.abraham@yahoo.fr>
+License: CC-BY-SA-4.0
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Python: >=3.10
+Requires-Dist: tqdm
+Description-Content-Type: text/markdown
+
+# `tqdm_joblib`
+
+Simple snippet copied from https://stackoverflow.com/a/58936697/5133167 packaged for simple reuse.
+
+# Usage
+
+```py
+from math import sqrt
+from joblib import Parallel, delayed
+from tqdm_joblib import tqdm_joblib
+from tqdm_joblib import ParallelPbar
+
+with tqdm_joblib(desc="My calculation", total=10) as progress_bar:
+    Parallel(n_jobs=16)(delayed(sqrt)(i**2) for i in range(10))
+
+# or
+
+ParallelPbar("My calculation")(n_jobs=16)(
+    delayed(sqrt)(i**2) for i in range(10)
+)
+```
+
+Distributed under CC BY-SA 4.0.
